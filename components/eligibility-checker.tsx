@@ -98,9 +98,15 @@ export function EligibilityChecker() {
       seeking_work_duration: form.seekingWorkDuration,
       care_leaver: form.careLeaver,
       applying_for_apprenticeship: form.applyingForApprenticeship,
-      youth_jobs_grant: result.grants.some((g) => g.name === "Youth Jobs Grant"),
-      care_leaver_bursary: result.grants.some((g) => g.name === "Care Leaver Bursary"),
-      sme_incentive: result.grants.some((g) => g.name === "SME Incentive"),
+      youth_jobs_grant: result.grants.some(
+        (g) => g.name === "Youth Jobs Grant" && g.eligible
+      ),
+      care_leaver_bursary: result.grants.some(
+        (g) => g.name === "Care Leaver Bursary" && g.eligible
+      ),
+      sme_incentive: result.grants.some(
+        (g) => g.name === "SME Incentive" && g.eligible
+      ),
       total_funding: result.totalFunding,
       reasons: JSON.stringify(result),
       status: "New",

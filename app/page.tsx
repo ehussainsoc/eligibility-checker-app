@@ -1,6 +1,6 @@
 import { GraduationCap } from "lucide-react"
 import { EligibilityChecker } from "@/components/eligibility-checker"
-
+export const dynamic = "force-dynamic"
 export default function Page() {
   return (
     <main className="min-h-screen bg-background">
