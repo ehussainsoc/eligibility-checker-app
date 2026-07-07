@@ -14,7 +14,7 @@ export default function Page() {
           </span>
           <div>
             <h1 className="text-lg font-bold text-primary-foreground text-balance">
-              Apprenticeship Funding Eligibility Checker
+              School of Coding Apprenticeship Eligibility Checker
             </h1>
             <p className="text-sm text-primary-foreground/80">
               Find out which grants and incentives you may qualify for.
