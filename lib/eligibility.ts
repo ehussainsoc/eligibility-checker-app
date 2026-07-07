@@ -4,8 +4,8 @@ export type FormData = {
   dateOfBirth: string
   employmentStatus: string
   universalCredit: "yes" | "no" | ""
-  universalCreditDuration: string // months
-  seekingWorkDuration: string // months
+  universalCreditDuration: string
+  seekingWorkDuration: string
   careLeaver: "yes" | "no" | ""
   applyingForApprenticeship: "yes" | "no" | ""
 }
@@ -26,8 +26,8 @@ export type EligibilityResult = {
 
 export const GRANT_AMOUNTS = {
   youthJobsGrant: 3000,
-  careLeaverBursary: 2000,
-  smeIncentive: 1500,
+  careLeaverBursary: 3000,
+  smeIncentive: 2000,
 }
 
 export function calculateAge(dateOfBirth: string): number {
@@ -35,97 +35,94 @@ export function calculateAge(dateOfBirth: string): number {
   const today = new Date()
   let age = today.getFullYear() - dob.getFullYear()
   const monthDiff = today.getMonth() - dob.getMonth()
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--
   }
+
   return age
 }
 
 export function evaluateEligibility(data: FormData): EligibilityResult {
   const age = calculateAge(data.dateOfBirth)
+
   const ucDuration = Number.parseInt(data.universalCreditDuration || "0", 10)
   const seekingDuration = Number.parseInt(data.seekingWorkDuration || "0", 10)
 
   // Youth Jobs Grant
-  const yjgReasons: string[] = []
   const yjgAgeOk = age >= 18 && age <= 24
   const yjgUcOk = data.universalCredit === "yes"
   const yjgUcDurationOk = ucDuration >= 6
   const yjgSeekingOk = seekingDuration >= 6
-  yjgReasons.push(
-    yjgAgeOk
-      ? `Age ${age} is within the required 18–24 range.`
-      : `Age ${age} is outside the required 18–24 range.`,
-  )
-  yjgReasons.push(
-    yjgUcOk
-      ? "Currently receiving Universal Credit."
-      : "Not currently receiving Universal Credit.",
-  )
-  yjgReasons.push(
-    yjgUcDurationOk
-      ? `On Universal Credit for ${ucDuration} months (6+ required).`
-      : `On Universal Credit for ${ucDuration} months (6+ required).`,
-  )
-  yjgReasons.push(
-    yjgSeekingOk
-      ? `Seeking work for ${seekingDuration} months (6+ required).`
-      : `Seeking work for ${seekingDuration} months (6+ required).`,
-  )
+
   const youthJobsGrant: GrantResult = {
     id: "youth-jobs-grant",
     name: "Youth Jobs Grant",
     amount: GRANT_AMOUNTS.youthJobsGrant,
     eligible: yjgAgeOk && yjgUcOk && yjgUcDurationOk && yjgSeekingOk,
-    reasons: yjgReasons,
+    reasons: [
+      yjgAgeOk
+        ? `Age ${age} is within the required 18–24 range.`
+        : `Age ${age} is outside the required 18–24 range.`,
+      yjgUcOk
+        ? "Currently receiving Universal Credit."
+        : "Not currently receiving Universal Credit.",
+      yjgUcDurationOk
+        ? `On Universal Credit for ${ucDuration} months.`
+        : `Must be on Universal Credit for at least 6 months.`,
+      yjgSeekingOk
+        ? `Seeking work for ${seekingDuration} months.`
+        : `Must have been seeking work for at least 6 months.`,
+    ],
   }
 
   // Care Leaver Bursary
-  const clbReasons: string[] = []
   const clbAgeOk = age >= 16 && age <= 24
   const clbCareOk = data.careLeaver === "yes"
-  clbReasons.push(
-    clbAgeOk
-      ? `Age ${age} is within the required 16–24 range.`
-      : `Age ${age} is outside the required 16–24 range.`,
-  )
-  clbReasons.push(
-    clbCareOk ? "Identified as a care leaver." : "Not identified as a care leaver.",
-  )
+
   const careLeaverBursary: GrantResult = {
     id: "care-leaver-bursary",
     name: "Care Leaver Bursary",
     amount: GRANT_AMOUNTS.careLeaverBursary,
     eligible: clbAgeOk && clbCareOk,
-    reasons: clbReasons,
+    reasons: [
+      clbAgeOk
+        ? `Age ${age} is within the required 16–24 range.`
+        : `Age ${age} is outside the required 16–24 range.`,
+      clbCareOk
+        ? "Applicant is a care leaver."
+        : "Applicant is not a care leaver.",
+    ],
   }
 
   // SME Incentive
-  const smeReasons: string[] = []
-  const smeAgeOk = age >= 16 && age <= 24
+  const smeAgeOk = age >= 18 && age <= 24
   const smeApplyingOk = data.applyingForApprenticeship === "yes"
-  smeReasons.push(
-    smeAgeOk
-      ? `Age ${age} is within the required 16–24 range.`
-      : `Age ${age} is outside the required 16–24 range.`,
-  )
-  smeReasons.push(
-    smeApplyingOk
-      ? "Applying for an apprenticeship."
-      : "Not applying for an apprenticeship.",
-  )
+
   const smeIncentive: GrantResult = {
     id: "sme-incentive",
     name: "SME Incentive",
     amount: GRANT_AMOUNTS.smeIncentive,
     eligible: smeAgeOk && smeApplyingOk,
-    reasons: smeReasons,
+    reasons: [
+      smeAgeOk
+        ? `Age ${age} is within the required 18–24 range.`
+        : `Age ${age} is outside the required 18–24 range.`,
+      smeApplyingOk
+        ? "Applicant is applying for an apprenticeship."
+        : "Applicant is not applying for an apprenticeship.",
+    ],
   }
 
   const grants = [youthJobsGrant, careLeaverBursary, smeIncentive]
-  const totalFunding = grants
-    .filter((g) => g.eligible)
-    .reduce((sum, g) => sum + g.amount, 0)
 
-  return { age, grants, totalFunding }
+  const totalFunding = grants
+    .filter((grant) => grant.eligible)
+    .reduce((sum, grant) => sum + grant.amount, 0)
+
+  return {
+    age,
+    grants,
+    totalFunding,
+  }
 }

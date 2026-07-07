@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Apprenticeship Funding Eligibility Checker',
+  title: 'School of Coding Apprenticeship Eligibility Checker',
   description:
     'Check which apprenticeship funding grants and incentives you may be eligible for.',
   generator: 'v0.app',

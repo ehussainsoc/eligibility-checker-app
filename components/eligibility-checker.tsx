@@ -1,5 +1,5 @@
 "use client"
-
+import { supabase } from "@/lib/supabase"
 import { useState } from "react"
 import { GraduationCap, RotateCcw } from "lucide-react"
 import {
@@ -83,10 +83,34 @@ export function EligibilityChecker() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
   
-    // We'll save to Supabase here later.
+    const result = evaluateEligibility(form)
+  
+    const { error } = await supabase.from("applicants").insert({
+      full_name: form.fullName,
+      email: form.email,
+      date_of_birth: form.dateOfBirth,
+      employment_status: form.employmentStatus,
+      universal_credit: form.universalCredit,
+      universal_credit_duration: form.universalCreditDuration,
+      seeking_work_duration: form.seekingWorkDuration,
+      care_leaver: form.careLeaver,
+      applying_for_apprenticeship: form.applyingForApprenticeship,
+      youth_jobs_grant: result.grants.some((g) => g.name === "Youth Jobs Grant"),
+      care_leaver_bursary: result.grants.some((g) => g.name === "Care Leaver Bursary"),
+      sme_incentive: result.grants.some((g) => g.name === "SME Incentive"),
+      total_funding: result.totalFunding,
+      reasons: JSON.stringify(result),
+      status: "New",
+    })
+  
+    if (error) {
+      alert("There was an error submitting your application. Please try again.")
+      console.error(error)
+      return
+    }
   
     alert(
       "Thank you. Your application has been submitted successfully. Our recruitment team will review your application and contact you if you are shortlisted."
