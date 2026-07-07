@@ -85,10 +85,14 @@ export function EligibilityChecker() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setResult(evaluateEligibility(form))
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" })
-    }
+  
+    // We'll save to Supabase here later.
+  
+    alert(
+      "Thank you. Your application has been submitted successfully. Our recruitment team will review your application and contact you if you are shortlisted."
+    )
+  
+    setForm(initialForm)
   }
 
   function handleReset() {
@@ -188,17 +192,18 @@ export function EligibilityChecker() {
               <label htmlFor="ucDuration" className={labelClass}>
                 Universal Credit duration (months)
               </label>
-              <input
-                id="ucDuration"
-                type="number"
-                min={0}
-                value={form.universalCreditDuration}
-                onChange={(e) =>
-                  update("universalCreditDuration", e.target.value)
-                }
-                className={inputClass}
-                placeholder="e.g. 8"
-              />
+              <select
+  id="ucDuration"
+  required
+  value={form.universalCreditDuration}
+  onChange={(e) => update("universalCreditDuration", e.target.value)}
+  className={inputClass}
+>
+  <option value="">Select an option</option>
+  <option value="Less than 6 months">Less than 6 months</option>
+  <option value="6 months or more">6 months or more</option>
+  <option value="Not applicable">Not applicable</option>
+</select>
             </div>
           )}
 
@@ -206,15 +211,17 @@ export function EligibilityChecker() {
             <label htmlFor="seekingWork" className={labelClass}>
               Seeking work duration (months)
             </label>
-            <input
-              id="seekingWork"
-              type="number"
-              min={0}
-              value={form.seekingWorkDuration}
-              onChange={(e) => update("seekingWorkDuration", e.target.value)}
-              className={inputClass}
-              placeholder="e.g. 7"
-            />
+            <select
+  id="seekingWork"
+  required
+  value={form.seekingWorkDuration}
+  onChange={(e) => update("seekingWorkDuration", e.target.value)}
+  className={inputClass}
+>
+  <option value="">Select an option</option>
+  <option value="Less than 6 months">Less than 6 months</option>
+  <option value="6 months or more">6 months or more</option>
+</select>
           </div>
 
           <YesNoField
@@ -238,7 +245,7 @@ export function EligibilityChecker() {
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/40"
           >
             <GraduationCap className="size-4" aria-hidden="true" />
-            Check eligibility
+            Submit
           </button>
           {result && (
             <button
@@ -254,24 +261,24 @@ export function EligibilityChecker() {
       </form>
 
       <div className="lg:sticky lg:top-8">
-        {result ? (
-          <EligibilityResults result={result} />
-        ) : (
-          <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
-            <GraduationCap
-              className="size-10 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <p className="mt-3 text-sm font-medium text-card-foreground">
-              Your results will appear here
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground text-pretty">
-              Fill in your details and click “Check eligibility” to see which
-              grants you qualify for.
-            </p>
-          </div>
-        )}
-      </div>
+  <div className="rounded-2xl border bg-card p-8">
+    <h2 className="text-xl font-semibold">
+      Application Review
+    </h2>
+
+    <p className="mt-4 text-muted-foreground">
+      Complete the application form and submit it.
+    </p>
+
+    <p className="mt-2 text-muted-foreground">
+      Our apprenticeship team will review your eligibility and contact you shortly.
+    </p>
+
+    <p className="mt-6 text-sm font-medium text-primary">
+      
+    </p>
+  </div>
+</div>
     </div>
   )
 }
