@@ -17,7 +17,7 @@ export default function Page() {
               Apprenticeship Funding Eligibility Checker
             </h1>
             <p className="text-sm text-primary-foreground/80">
-              Find out which grants and incentives you may qualify for.
+              Apply for apprenticeship funding grants and incentives.
             </p>
           </div>
         </div>

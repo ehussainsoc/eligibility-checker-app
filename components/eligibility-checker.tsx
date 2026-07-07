@@ -1,13 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { GraduationCap, RotateCcw } from "lucide-react"
-import {
-  evaluateEligibility,
-  type EligibilityResult,
-  type FormData,
-} from "@/lib/eligibility"
-import { EligibilityResults } from "@/components/eligibility-results"
+import { GraduationCap, CheckCircle2, Loader2, RotateCcw } from "lucide-react"
+import { evaluateEligibility, type FormData } from "@/lib/eligibility"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 const EMPLOYMENT_OPTIONS = [
   "Unemployed",
@@ -75,7 +71,8 @@ function YesNoField({
 
 export function EligibilityChecker() {
   const [form, setForm] = useState<FormData>(initialForm)
-  const [result, setResult] = useState<EligibilityResult | null>(null)
+  const [status, setStatus] = useState<"idle" | "submitting" | "success">("idle")
+  const [error, setError] = useState<string | null>(null)
 
   const showUcDetails = form.universalCredit === "yes"
 
@@ -83,9 +80,60 @@ export function EligibilityChecker() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setResult(evaluateEligibility(form))
+    setError(null)
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError(
+        "The application form is not connected to the database yet. Please contact the site administrator.",
+      )
+      return
+    }
+
+    setStatus("submitting")
+
+    // Eligibility is calculated but intentionally NOT shown to the applicant.
+    const result = evaluateEligibility(form)
+    const reasons = result.grants.reduce<Record<string, string[]>>((acc, g) => {
+      acc[g.id] = g.reasons
+      return acc
+    }, {})
+    const grantEligible = (id: string) =>
+      result.grants.find((g) => g.id === id)?.eligible ?? false
+
+    const { error: insertError } = await supabase.from("applicants").insert({
+      full_name: form.fullName,
+      email: form.email,
+      date_of_birth: form.dateOfBirth,
+      age: result.age,
+      employment_status: form.employmentStatus,
+      universal_credit: form.universalCredit === "yes",
+      universal_credit_duration: Number.parseInt(
+        form.universalCreditDuration || "0",
+        10,
+      ),
+      seeking_work_duration: Number.parseInt(form.seekingWorkDuration || "0", 10),
+      care_leaver: form.careLeaver === "yes",
+      applying_for_apprenticeship: form.applyingForApprenticeship === "yes",
+      youth_jobs_grant: grantEligible("youth-jobs-grant"),
+      care_leaver_bursary: grantEligible("care-leaver-bursary"),
+      sme_incentive: grantEligible("sme-incentive"),
+      total_funding: result.totalFunding,
+      reasons,
+      status: "pending",
+    })
+
+    if (insertError) {
+      console.log("[v0] Supabase insert error:", insertError.message)
+      setError(
+        "Something went wrong submitting your application. Please try again.",
+      )
+      setStatus("idle")
+      return
+    }
+
+    setStatus("success")
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
@@ -93,185 +141,192 @@ export function EligibilityChecker() {
 
   function handleReset() {
     setForm(initialForm)
-    setResult(null)
+    setStatus("idle")
+    setError(null)
+  }
+
+  if (status === "success") {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-primary/30 bg-card p-8 text-center shadow-sm sm:p-10">
+        <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+          <CheckCircle2 className="size-8 text-primary" aria-hidden="true" />
+        </div>
+        <h2 className="mt-5 text-xl font-semibold text-card-foreground text-balance">
+          Application submitted
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty">
+          Thank you. Your application has been submitted successfully. Our team
+          will review your eligibility and contact you shortly.
+        </p>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+        >
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Submit another application
+        </button>
+      </div>
+    )
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-start">
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8"
-      >
-        <h2 className="text-lg font-semibold text-card-foreground">
-          Your details
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Complete the form to check which grants you may qualify for.
-        </p>
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8"
+    >
+      <h2 className="text-lg font-semibold text-card-foreground">Your details</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Complete the form to apply for apprenticeship funding.
+      </p>
 
-        <div className="mt-6 flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="fullName" className={labelClass}>
-              Full name
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              required
-              value={form.fullName}
-              onChange={(e) => update("fullName", e.target.value)}
-              className={inputClass}
-              placeholder="Jane Doe"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="email" className={labelClass}>
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              className={inputClass}
-              placeholder="jane@example.com"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="dob" className={labelClass}>
-              Date of birth
-            </label>
-            <input
-              id="dob"
-              type="date"
-              required
-              value={form.dateOfBirth}
-              onChange={(e) => update("dateOfBirth", e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="employment" className={labelClass}>
-              Employment status
-            </label>
-            <select
-              id="employment"
-              required
-              value={form.employmentStatus}
-              onChange={(e) => update("employmentStatus", e.target.value)}
-              className={inputClass}
-            >
-              <option value="" disabled>
-                Select an option
-              </option>
-              {EMPLOYMENT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <YesNoField
-            id="universalCredit"
-            label="Receiving Universal Credit?"
-            value={form.universalCredit}
-            onChange={(v) => update("universalCredit", v)}
+      <div className="mt-6 flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="fullName" className={labelClass}>
+            Full name
+          </label>
+          <input
+            id="fullName"
+            type="text"
+            required
+            value={form.fullName}
+            onChange={(e) => update("fullName", e.target.value)}
+            className={inputClass}
+            placeholder="Jane Doe"
           />
+        </div>
 
-          {showUcDetails && (
-            <div className="flex flex-col gap-2">
-              <label htmlFor="ucDuration" className={labelClass}>
-                Universal Credit duration (months)
-              </label>
-              <input
-                id="ucDuration"
-                type="number"
-                min={0}
-                value={form.universalCreditDuration}
-                onChange={(e) =>
-                  update("universalCreditDuration", e.target.value)
-                }
-                className={inputClass}
-                placeholder="e.g. 8"
-              />
-            </div>
-          )}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="email" className={labelClass}>
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => update("email", e.target.value)}
+            className={inputClass}
+            placeholder="jane@example.com"
+          />
+        </div>
 
+        <div className="flex flex-col gap-2">
+          <label htmlFor="dob" className={labelClass}>
+            Date of birth
+          </label>
+          <input
+            id="dob"
+            type="date"
+            required
+            value={form.dateOfBirth}
+            onChange={(e) => update("dateOfBirth", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="employment" className={labelClass}>
+            Employment status
+          </label>
+          <select
+            id="employment"
+            required
+            value={form.employmentStatus}
+            onChange={(e) => update("employmentStatus", e.target.value)}
+            className={inputClass}
+          >
+            <option value="" disabled>
+              Select an option
+            </option>
+            {EMPLOYMENT_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <YesNoField
+          id="universalCredit"
+          label="Receiving Universal Credit?"
+          value={form.universalCredit}
+          onChange={(v) => update("universalCredit", v)}
+        />
+
+        {showUcDetails && (
           <div className="flex flex-col gap-2">
-            <label htmlFor="seekingWork" className={labelClass}>
-              Seeking work duration (months)
+            <label htmlFor="ucDuration" className={labelClass}>
+              Universal Credit duration (months)
             </label>
             <input
-              id="seekingWork"
+              id="ucDuration"
               type="number"
               min={0}
-              value={form.seekingWorkDuration}
-              onChange={(e) => update("seekingWorkDuration", e.target.value)}
+              value={form.universalCreditDuration}
+              onChange={(e) => update("universalCreditDuration", e.target.value)}
               className={inputClass}
-              placeholder="e.g. 7"
+              placeholder="e.g. 8"
             />
-          </div>
-
-          <YesNoField
-            id="careLeaver"
-            label="Are you a care leaver?"
-            value={form.careLeaver}
-            onChange={(v) => update("careLeaver", v)}
-          />
-
-          <YesNoField
-            id="applyingForApprenticeship"
-            label="Applying for an apprenticeship?"
-            value={form.applyingForApprenticeship}
-            onChange={(v) => update("applyingForApprenticeship", v)}
-          />
-        </div>
-
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="submit"
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/40"
-          >
-            <GraduationCap className="size-4" aria-hidden="true" />
-            Check eligibility
-          </button>
-          {result && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              <RotateCcw className="size-4" aria-hidden="true" />
-              Reset
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="lg:sticky lg:top-8">
-        {result ? (
-          <EligibilityResults result={result} />
-        ) : (
-          <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
-            <GraduationCap
-              className="size-10 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <p className="mt-3 text-sm font-medium text-card-foreground">
-              Your results will appear here
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground text-pretty">
-              Fill in your details and click “Check eligibility” to see which
-              grants you qualify for.
-            </p>
           </div>
         )}
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="seekingWork" className={labelClass}>
+            Seeking work duration (months)
+          </label>
+          <input
+            id="seekingWork"
+            type="number"
+            min={0}
+            value={form.seekingWorkDuration}
+            onChange={(e) => update("seekingWorkDuration", e.target.value)}
+            className={inputClass}
+            placeholder="e.g. 7"
+          />
+        </div>
+
+        <YesNoField
+          id="careLeaver"
+          label="Are you a care leaver?"
+          value={form.careLeaver}
+          onChange={(v) => update("careLeaver", v)}
+        />
+
+        <YesNoField
+          id="applyingForApprenticeship"
+          label="Applying for an apprenticeship?"
+          value={form.applyingForApprenticeship}
+          onChange={(v) => update("applyingForApprenticeship", v)}
+        />
       </div>
-    </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="mt-6 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={status === "submitting"}
+        className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {status === "submitting" ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Submitting…
+          </>
+        ) : (
+          <>
+            <GraduationCap className="size-4" aria-hidden="true" />
+            Submit application
+          </>
+        )}
+      </button>
+    </form>
   )
 }
