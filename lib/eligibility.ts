@@ -46,8 +46,11 @@ export function calculateAge(dateOfBirth: string): number {
 export function evaluateEligibility(data: FormData): EligibilityResult {
   const age = calculateAge(data.dateOfBirth)
 
-  const ucDuration = Number.parseInt(data.universalCreditDuration || "0", 10)
-  const seekingDuration = Number.parseInt(data.seekingWorkDuration || "0", 10)
+  const ucDuration =
+  data.universalCreditDuration === "6 months or more" ? 6 : 0
+
+const seekingDuration =
+  data.seekingWorkDuration === "6 months or more" ? 6 : 0
 
   // Youth Jobs Grant
   const yjgAgeOk = age >= 18 && age <= 24
