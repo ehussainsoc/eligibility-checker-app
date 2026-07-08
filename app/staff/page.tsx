@@ -1,5 +1,9 @@
+
 import { supabase } from "@/lib/supabase"
 import { evaluateEligibility } from "@/lib/eligibility"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const fetchCache = "force-no-store"
 const grantInfo = {
   youth_jobs_grant: {
     name: "Youth Jobs Grant",
